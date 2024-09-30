@@ -45,15 +45,21 @@ def _add_prefix(name: str) -> str:
     return f"profile {name}" if name != "default" else "default"
 
 
-def _get_aws_profile(profile_name: str) -> dict[str, str]:
+def _get_aws_profile(profile_name: str, session: str) -> dict[str, str]:
     if not Path(AWS_CONFIG_PATH).exists():
         raise AWSConfigNotFoundError
     config = _read_config(AWS_CONFIG_PATH)
     profile_to_refresh = _add_prefix(profile_name)
     try:
+        sso_start_url = config.get(f"sso-session {session}", "sso_start_url")
+    except NoSectionError as e:
+        msg = f"Session `{session}` not found to extract sso_start_url."
+        raise SectionNotFoundError(msg) from e
+    try:
+        config.set(profile_to_refresh, "sso_start_url", sso_start_url)
         profile_opts = config.items(profile_to_refresh)
     except NoSectionError as e:
-        msg = f"{profile_to_refresh} profile not found."
+        msg = f"Profile `{profile_to_refresh}` not found."
         raise SectionNotFoundError(msg) from e
     return dict(profile_opts)
 
@@ -181,10 +187,16 @@ def run_aws_sso_login(  # noqa: C901
     default=False,
     help="Profile to use.",
 )
-def cli(no_headless: bool, debug: bool, profile: str, force: bool) -> None:  # noqa: FBT001
+@click.option(
+    "--session",
+    "-s",
+    default="default",
+    help="Session to use.",
+)
+def cli(no_headless: bool, debug: bool, profile: str, force: bool, session: str) -> None:  # noqa: FBT001
     """A tool to automate AWS SSO login."""
     try:
-        profile_opts = _get_aws_profile(profile)
+        profile_opts = _get_aws_profile(profile, session)
         if have_internet():
             if force or is_sso_expired(profile_opts):
                 if force:
@@ -203,7 +215,8 @@ def cli(no_headless: bool, debug: bool, profile: str, force: bool) -> None:  # n
     except AWSConfigNotFoundError:
         print(f"AWS Config file not found in `{AWS_CONFIG_PATH}`.")
         sys.exit(-1)
-    except SectionNotFoundError:
+    except SectionNotFoundError as e:
+        print(e)
         print(f"Profile `{profile}` not found in {AWS_CONFIG_PATH}.")
         sys.exit(-1)
     except BrokenPipeError:
