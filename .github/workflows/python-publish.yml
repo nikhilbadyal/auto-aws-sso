@@ -1,0 +1,21 @@
+name: Upload Python Package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  pypi-publish:
+    name: upload release to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - run: pipx install poetry
+      - uses: actions/checkout@v4.1.7
+      - run: poetry build
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

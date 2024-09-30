@@ -1,0 +1,140 @@
+[build-system]
+requires = ["hatchling","hatch-requirements-txt"]
+build-backend = "hatchling.build"
+
+#Project
+[project]
+name = "auto-aws-sso"
+dynamic = ["version","dependencies","optional-dependencies"]
+description = "Fuck AWS SSO."
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+authors = [
+    { name = "Nikhil Badyal", email = "nikhill773384@gmail.com" },
+]
+keywords = [
+    "aws",
+    "sso",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+    "Topic :: Internet",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
+]
+[project.urls]
+Homepage = "https://github.com/nikhilbadyal/auto-aws-sso"
+"Bug Tracker"="https://github.com/nikhilbadyal/auto-aws-sso/issues"
+Repository = "https://github.com/nikhilbadyal/auto-aws-sso.git"
+[project.scripts]
+auto-aws-sso = "auto_aws_sso.cli:cli"
+
+#Hatch
+[tool.hatch.metadata]
+allow-direct-references = true
+[tool.hatch.metadata.hooks.requirements_txt]
+files = ["requirements.txt"]
+[tool.hatch.metadata.hooks.requirements_txt.optional-dependencies]
+dev = ["requirements.dev.txt"]
+[tool.hatch.version]
+path = "auto_aws_sso/__init__.py"
+[tool.hatch.build.targets.sdist]
+only-include = ["auto_aws_sso"]
+[tool.hatch.build.targets.wheel]
+only-include = ["auto_aws_sso"]
+
+
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+fix = true
+show-fixes = true
+[tool.ruff.lint]
+select = [ "ALL"]
+ignore = [
+    "BLE001", #  Do not catch blind exception: `Exception`
+    "D100", # Missing docstring in public module
+    "D101", # Missing docstring in public class
+    "D102", #  Missing docstring in public method
+    "D103", # Missing docstring in public function
+    "D104", #  Missing docstring in public package
+    "D401", #  First line of docstring should be in imperative mood
+    "T201", #  Remove print
+
+
+]
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+
+[tool.docformatter]
+recursive = true
+wrap-summaries = 120
+wrap-descriptions = 120
+
+[tool.black]
+line-length = 120
+
+[pycodestyle]
+max-line-length = 120
+exclude = ["venv"]
+
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+[tool.pyright]
+include = ["."]
+typeCheckingMode = "strict"
+exclude = ["**/test",]
+reportMissingTypeStubs = false
+
+
+
+[tool.tbump]
+
+[tool.tbump.version]
+current = "0.0.7"
+
+# using tbump
+regex = '''
+  (?P<major>\d+)
+  \.
+  (?P<minor>\d+)
+  \.
+  (?P<patch>\d+)
+  '''
+
+[tool.tbump.git]
+message_template = "⬆️ Bump to {new_version}"
+tag_template = "v{new_version}"
+
+[[tool.tbump.file]]
+src = "pyproject.toml"
+
+[[tool.tbump.file]]
+src = "auto_aws_sso/__init__.py"
+
+
+[tool.vulture]
+min_confidence = 65
+exclude = [".venv/"]
+
+[tool.deadcode]
+exclude = [".venv"]
