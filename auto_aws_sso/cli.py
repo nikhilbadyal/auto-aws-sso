@@ -50,13 +50,15 @@ def _get_aws_profile(profile_name: str, session: str) -> dict[str, str]:
         raise AWSConfigNotFoundError
     config = _read_config(AWS_CONFIG_PATH)
     profile_to_refresh = _add_prefix(profile_name)
-    sso_start_url = config.get(profile_to_refresh, "sso_start_url")
-    if not sso_start_url:
+    try:
+        sso_start_url = config.get(profile_to_refresh, "sso_start_url")
+    except NoSectionError:
         try:
             sso_start_url = config.get(f"sso-session {session}", "sso_start_url")
         except NoSectionError as e:
             msg = f"Session `{session}` not found to extract sso_start_url."
             raise SectionNotFoundError(msg) from e
+
     try:
         config.set(profile_to_refresh, "sso_start_url", sso_start_url)
         profile_opts = config.items(profile_to_refresh)
@@ -67,8 +69,11 @@ def _get_aws_profile(profile_name: str, session: str) -> dict[str, str]:
 
 
 def is_sso_expired(profile: dict[str, str]) -> bool:
+    try:
+        cache = hashlib.sha1(profile["sso_session"].encode("utf-8")).hexdigest()  # noqa: S324
+    except KeyError:
+        cache = hashlib.sha1(profile["sso_start_url"].encode("utf-8")).hexdigest()  # noqa: S324
 
-    cache = hashlib.sha1(profile["sso_session"].encode("utf-8")).hexdigest()  # noqa: S324
     sso_cache_file = f"{AWS_SSO_CACHE_PATH}/{cache}.json"
     expired = True
     try:
@@ -105,6 +110,7 @@ def have_internet() -> bool:
 
 def run_aws_sso_login(  # noqa: C901
     callback: Callable[[str, str, NamedArg(bool, "headless")], None],
+    profile_to_refresh: str,
     *,
     headless: bool,
 ) -> Thread:
@@ -119,7 +125,7 @@ def run_aws_sso_login(  # noqa: C901
     def sso_login() -> None:
         nonlocal url, code  # Access the outer scope variables
         with subprocess.Popen(  # noqa: S602
-            ["/opt/homebrew/bin/aws sso login --no-browser"],
+            [f"aws sso login --no-browser --profile {profile_to_refresh}"],
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -208,7 +214,7 @@ def cli(no_headless: bool, debug: bool, profile: str, force: bool, session: str)
                 if debug:
                     logging.basicConfig(level=logging.DEBUG)
                 # noinspection PyTypeChecker
-                login_thread = run_aws_sso_login(authorize_sso, headless=(not no_headless))
+                login_thread = run_aws_sso_login(authorize_sso, headless=(not no_headless), profile_to_refresh=profile)
                 login_thread.join()
             else:
                 print("SSO not expired.")
