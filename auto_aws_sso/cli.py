@@ -50,11 +50,13 @@ def _get_aws_profile(profile_name: str, session: str) -> dict[str, str]:
         raise AWSConfigNotFoundError
     config = _read_config(AWS_CONFIG_PATH)
     profile_to_refresh = _add_prefix(profile_name)
-    try:
-        sso_start_url = config.get(f"sso-session {session}", "sso_start_url")
-    except NoSectionError as e:
-        msg = f"Session `{session}` not found to extract sso_start_url."
-        raise SectionNotFoundError(msg) from e
+    sso_start_url = config.get(profile_to_refresh, "sso_start_url")
+    if not sso_start_url:
+        try:
+            sso_start_url = config.get(f"sso-session {session}", "sso_start_url")
+        except NoSectionError as e:
+            msg = f"Session `{session}` not found to extract sso_start_url."
+            raise SectionNotFoundError(msg) from e
     try:
         config.set(profile_to_refresh, "sso_start_url", sso_start_url)
         profile_opts = config.items(profile_to_refresh)
