@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 import threading
-from configparser import ConfigParser
+from configparser import ConfigParser, NoSectionError
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
@@ -19,6 +19,7 @@ from dateutil.parser import parse
 from dateutil.tz import UTC, tzlocal
 
 from auto_aws_sso.authorize_sso import authorize_sso
+from auto_aws_sso.exception import AWSConfigNotFoundError, SectionNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -45,10 +46,15 @@ def _add_prefix(name: str) -> str:
 
 
 def _get_aws_profile(profile_name: str) -> dict[str, str]:
+    if not Path(AWS_CONFIG_PATH).exists():
+        raise AWSConfigNotFoundError
     config = _read_config(AWS_CONFIG_PATH)
-    sso_start_url = config.get("sso-session default", "sso_start_url")
-    config.set("default", "sso_start_url", sso_start_url)
-    profile_opts = config.items(_add_prefix(profile_name))
+    profile_to_refresh = _add_prefix(profile_name)
+    try:
+        profile_opts = config.items(profile_to_refresh)
+    except NoSectionError as e:
+        msg = f"{profile_to_refresh} profile not found."
+        raise SectionNotFoundError(msg) from e
     return dict(profile_opts)
 
 
@@ -194,6 +200,12 @@ def cli(no_headless: bool, debug: bool, profile: str, force: bool) -> None:  # n
                 print("SSO not expired.")
         else:
             print("Internet not available.")
+    except AWSConfigNotFoundError:
+        print(f"AWS Config file not found in `{AWS_CONFIG_PATH}`.")
+        sys.exit(-1)
+    except SectionNotFoundError:
+        print(f"Profile `{profile}` not found in {AWS_CONFIG_PATH}.")
+        sys.exit(-1)
     except BrokenPipeError:
         logging.warning("Broken pipe error encountered; exiting gracefully.")
         sys.exit(0)
