@@ -110,7 +110,7 @@ reportMissingTypeStubs = false
 [tool.tbump]
 
 [tool.tbump.version]
-current = "0.0.4"
+current = "0.0.5"
 
 # using tbump
 regex = '''
