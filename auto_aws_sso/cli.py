@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 import threading
-from configparser import ConfigParser, NoSectionError
+from configparser import ConfigParser, NoOptionError, NoSectionError
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
@@ -52,18 +52,18 @@ def _get_aws_profile(profile_name: str, session: str) -> dict[str, str]:
     profile_to_refresh = _add_prefix(profile_name)
     try:
         sso_start_url = config.get(profile_to_refresh, "sso_start_url")
-    except NoSectionError:
+    except (NoSectionError, NoOptionError):
         try:
             sso_start_url = config.get(f"sso-session {session}", "sso_start_url")
         except NoSectionError as e:
-            msg = f"Session `{session}` not found to extract sso_start_url."
+            msg = f"Session `{session}` not found to extract sso_start_url in `{AWS_CONFIG_PATH}`."
             raise SectionNotFoundError(msg) from e
 
     try:
         config.set(profile_to_refresh, "sso_start_url", sso_start_url)
         profile_opts = config.items(profile_to_refresh)
     except NoSectionError as e:
-        msg = f"Profile `{profile_to_refresh}` not found."
+        msg = f"Profile `{profile_to_refresh}` not found in `{AWS_CONFIG_PATH}`."
         raise SectionNotFoundError(msg) from e
     return dict(profile_opts)
 
@@ -225,7 +225,6 @@ def cli(no_headless: bool, debug: bool, profile: str, force: bool, session: str)
         sys.exit(-1)
     except SectionNotFoundError as e:
         print(e)
-        print(f"Profile `{profile}` not found in {AWS_CONFIG_PATH}.")
         sys.exit(-1)
     except BrokenPipeError:
         logging.warning("Broken pipe error encountered; exiting gracefully.")
