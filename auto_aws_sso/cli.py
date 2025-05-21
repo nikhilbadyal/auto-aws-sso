@@ -29,11 +29,17 @@ if TYPE_CHECKING:
 
 AWS_CONFIG_PATH = f"{Path.home()}/.aws/config"
 AWS_SSO_CACHE_PATH = f"{Path.home()}/.aws/sso/cache"
+logger = logging.getLogger(__name__)
 
 
 def _load_json(path: str) -> dict[str, Any]:
-    with Path(path).open() as context:
-        return dict(json.load(context))
+    try:
+        with Path(path).open() as f:
+            return dict(json.load(f))
+    except (OSError, json.JSONDecodeError):
+        msg = f"Failed to load JSON from {path}"
+        logger.exception(msg)
+        return {}
 
 
 def _read_config(path: str) -> ConfigParser:
@@ -90,7 +96,7 @@ def is_sso_expired(profile: dict[str, str]) -> bool:
                 expired = False
 
             print(
-                f"Found credentials. Valid until {expires_at.astimezone(tzlocal()).strftime('%Y-%m-%d %I:%M:%S %p %Z')}",
+                f"Found credentials valid till {expires_at.astimezone(tzlocal()).strftime('%Y-%m-%d %I:%M:%S %p %Z')}",
             )
     except Exception:
         return expired
@@ -111,15 +117,14 @@ def have_internet() -> bool:
         conn.close()
 
 
-def run_aws_sso_login(  # noqa: C901
-    callback: Callable[[str, str, NamedArg(bool, "headless")], None],
+def run_aws_sso_login(
+    callback: Callable[[str, NamedArg(bool, "headless")], None],
     profile_to_refresh: str,
     *,
     headless: bool,
 ) -> Thread:
     # Regex patterns to match the URL and the code
-    url_pattern = r"https://device\.sso\.[\w\-\.]+"
-    code_pattern = r"[A-Z0-9]{4}-[A-Z0-9]{4}"
+    url_pattern = r"https://[^\s]+"
 
     # Initialize variables to store the URL and code
     url = None
@@ -127,36 +132,34 @@ def run_aws_sso_login(  # noqa: C901
 
     def sso_login() -> None:
         nonlocal url, code  # Access the outer scope variables
-        with subprocess.Popen(  # noqa: S602
-            [f"aws sso login --no-browser --profile {profile_to_refresh}"],
-            shell=True,
+        print(f"Refreshing {profile_to_refresh}")
+        with subprocess.Popen(  # noqa: S603
+            ["aws", "sso", "login", "--no-browser", "--profile", profile_to_refresh],  # noqa: S607
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,  # Automatically decode output to string
+            text=True,
         ) as process:
             while True:
                 if process.stdout is None:
                     msg = "No stdout available."
                     raise ValueError(msg)
-                output = process.stdout.readline()
+                output = process.stdout.readline().strip()
                 if output == "" and process.poll() is not None:
                     break
 
-                if output:
+                if output and len(output) > 0:
                     # Match URL and code in the output
                     url_match = re.search(url_pattern, output)
-                    code_match = re.search(code_pattern, output)
 
                     # Update url and code if matches are found
                     if url_match:
                         url = url_match.group(0)
-                    if code_match:
-                        code = code_match.group(0)
+                    print(f"URL: {url}")
 
                     # If both URL and code are found, invoke the callback and exit the loop
-                    if url and code:
+                    if url:
                         # noinspection PyArgumentList
-                        callback(url, code, headless=headless)
+                        callback(url, headless=headless)
                         break
 
             # Check for errors in stderr
@@ -165,7 +168,7 @@ def run_aws_sso_login(  # noqa: C901
                 if stderr_output:
                     print(f"Error: {stderr_output}")
 
-    thread = threading.Thread(target=sso_login)
+    thread = threading.Thread(target=sso_login, name=f"SSOLogin-{profile_to_refresh}")
     thread.start()
     return thread
 
@@ -179,13 +182,6 @@ def run_aws_sso_login(  # noqa: C901
     help="Run in non-headless mode.",
 )
 @click.option(
-    "--debug",
-    "-d",
-    is_flag=True,
-    default=False,
-    help="Debug mode on.",
-)
-@click.option(
     "--profile",
     "-p",
     default=default_profile,
@@ -196,7 +192,7 @@ def run_aws_sso_login(  # noqa: C901
     "-f",
     is_flag=True,
     default=False,
-    help="Profile to use.",
+    help="Force refresh even if credentials are valid.",
 )
 @click.option(
     "--session",
@@ -204,7 +200,7 @@ def run_aws_sso_login(  # noqa: C901
     required=True,
     help="Session to use.",
 )
-def cli(no_headless: bool, debug: bool, profile: str, force: bool, session: str) -> None:  # noqa: FBT001
+def cli(no_headless: bool, profile: str, force: bool, session: str) -> None:  # noqa: FBT001
     """A tool to automate AWS SSO login."""
     try:
         profile_opts = _get_aws_profile(profile, session)
@@ -214,11 +210,10 @@ def cli(no_headless: bool, debug: bool, profile: str, force: bool, session: str)
                     print("Forcing Refresh.")
                 else:
                     print("SSO Expired.")
-                if debug:
-                    logging.basicConfig(level=logging.DEBUG)
                 # noinspection PyTypeChecker
                 login_thread = run_aws_sso_login(authorize_sso, headless=(not no_headless), profile_to_refresh=profile)
                 login_thread.join()
+                print("SSO login completed.")
             else:
                 print("SSO not expired.")
         else:
@@ -230,7 +225,7 @@ def cli(no_headless: bool, debug: bool, profile: str, force: bool, session: str)
         print(e)
         sys.exit(-1)
     except BrokenPipeError:
-        logging.warning("Broken pipe error encountered; exiting gracefully.")
+        logger.warning("Broken pipe error encountered; exiting gracefully.")
         sys.exit(0)
 
 
