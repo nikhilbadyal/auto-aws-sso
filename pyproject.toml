@@ -132,6 +132,11 @@ src = "pyproject.toml"
 [[tool.tbump.file]]
 src = "auto_aws_sso/__init__.py"
 
+[[tool.tbump.before_commit]]
+name = "Run Pre-commit"
+cmd = "pre-commit run -a"
+
+
 [tool.vulture]
 min_confidence = 65
 exclude = [".venv/"]
