@@ -1,0 +1,64 @@
+name: Publish Python Package
+
+on:
+  push:
+    tags:
+      - 'v*'      # Trigger when pushing tags starting with "v"
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: 'Where to publish the package'
+        required: false
+        default: 'testpypi'
+        type: choice
+        options:
+          - pypi
+          - testpypi
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.6.0
+        with:
+          python-version: 3.x
+
+      - name: Install dependencies (hatch)
+        run: python -m pip install --upgrade pip hatch
+
+      - name: Build package artifacts
+        run: hatch build
+
+      - name: Publish package
+        env:
+          HATCH_INDEX_USER: __token__
+        run: |
+          REPO="main"
+          TOKEN="${{ secrets.PYPI_TOKEN }}"
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ github.event.inputs.publish_target }}" == "testpypi" ]]; then
+              echo "Manual trigger: Publishing to TestPyPI"
+              REPO="test"
+              TOKEN="${{ secrets.TEST_PYPI_TOKEN }}"
+            else
+              echo "Manual trigger: Publishing to PyPI"
+            fi
+          else
+            # If triggered by tag push (v*), publish to PyPI
+            if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+              echo "Tag push detected, publishing to PyPI"
+            else
+              # Optional: you can skip publishing for branch pushes if you want
+              echo "Push event on branch, publishing to PyPI"
+            fi
+          fi
+
+          export HATCH_INDEX_REPO=$REPO
+          export HATCH_INDEX_AUTH=$TOKEN
+
+          hatch publish dist/*
