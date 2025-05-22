@@ -108,6 +108,7 @@ reportMissingTypeStubs = false
 
 
 [tool.tbump]
+github_url = "https://github.com/nikhilbadyal/auto-aws-sso"
 
 [tool.tbump.version]
 current = "0.0.7"
@@ -130,7 +131,6 @@ src = "pyproject.toml"
 
 [[tool.tbump.file]]
 src = "auto_aws_sso/__init__.py"
-
 
 [tool.vulture]
 min_confidence = 65
