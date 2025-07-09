@@ -18,6 +18,11 @@ def build_driver(*, headless: bool) -> webdriver.Chrome:
     options.add_argument(f"user-data-dir={_user_data_dir}")
     if headless:
         options.add_argument("headless")
+
+    if os.getenv("CUSTOM_USER_AGENT"):
+        user_agent = os.getenv("CUSTOM_USER_AGENT", "")
+        options.add_argument(f"user-agent={user_agent}")
+
     return webdriver.Chrome(options=options)
 
 
