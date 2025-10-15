@@ -1,4 +1,4 @@
-exclude: "DBeaver/|ssh|.venv"
+exclude: "venv/"
 default_stages: [ pre-commit ]
 
 repos:
@@ -40,13 +40,6 @@ repos:
       - id: isort
         args:
           - "--settings-path=pyproject.toml"
-
-  - repo: https://github.com/hadialqattan/pycln
-    rev: v2.5.0
-    hooks:
-      - id: pycln
-        args:
-          - "--config=pyproject.toml"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: 'v0.14.0'
