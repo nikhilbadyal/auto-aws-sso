@@ -42,7 +42,7 @@ repos:
           - "--settings-path=pyproject.toml"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.15.7'
+    rev: 'v0.15.8'
     hooks:
       - id: ruff
         args:
@@ -59,7 +59,7 @@ repos:
         additional_dependencies: [ types-requests,types-tabulate,click,mypy-boto3-ec2,selenium,typer,types-python-dateutil ]
 
   - repo: https://github.com/jendrikseipp/vulture
-    rev: 'v2.15'
+    rev: 'v2.16'
     hooks:
       - id: vulture
         args:
