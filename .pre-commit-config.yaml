@@ -3,7 +3,7 @@ default_stages: [ pre-commit ]
 
 repos:
   - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.13.0-1
+    rev: v3.13.1-1
     hooks:
       - id: shfmt
 
@@ -42,7 +42,7 @@ repos:
           - "--settings-path=pyproject.toml"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.15.8'
+    rev: 'v0.15.11'
     hooks:
       - id: ruff
         args:
@@ -50,7 +50,7 @@ repos:
           - "--unsafe-fixes"
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
+    rev: v1.20.1
     hooks:
       - id: mypy
         args:
